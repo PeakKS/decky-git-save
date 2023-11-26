@@ -1,10 +1,10 @@
 {
-  "name": "Example Plugin",
-  "author": "John Doe",
+  "name": "Git Sync",
+  "author": "PeakKS",
   "flags": ["debug", "_root"],
   "publish": {
     "tags": ["template", "root"],
-    "description": "Decky example plugin.",
-    "image": "https://opengraph.githubassets.com/1/SteamDeckHomebrew/PluginLoader"
+    "description": "Decky plugin that syncs save games with git.",
+    "image": "https://git-scm.com/images/logos/downloads/Git-Icon-White.png"
   }
 }

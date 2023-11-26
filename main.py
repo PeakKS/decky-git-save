@@ -1,15 +1,83 @@
-import os
+import logging, os
+import subprocess
+import asyncio
+from GitPython import git
 
 # The decky plugin module is located at decky-loader/plugin
 # For easy intellisense checkout the decky-loader code one directory up
 # or add the `decky-loader/plugin` path to `python.analysis.extraPaths` in `.vscode/settings.json`
 import decky_plugin
 
+from settings import SettingsManager
+settingsDir = os.environ["DECKY_PLUGIN_SETTINGS_DIR"]
+logger = decky_plugin.logger
+
+logger.setLevel(logging.DEBUG)
+logger.info('Git Sync settings path: {}'.format(os.path.join(settingsDir, 'settings.json')))
+settings = SettingsManager(name="settings", settings_directory=settingsDir)
+settings.read()
+
+git_bin = "/usr/bin/git"
 
 class Plugin:
-    # A normal method. It can be called from JavaScript using call_plugin_function("method_1", argument1, argument2)
-    async def add(self, left, right):
-        return left + right
+    current_sync = None
+
+    async def sync_now(self, appid):
+        logger.debug(f'Syncing appid {appid} now')
+
+        local = self.get_setting(f'{appid}.local')
+        origin = self.get_setting(f'{appid}.origin')
+        user = self.get_setting(f'{appid}.user')
+        password = self.get_setting(f'{appid}.password')
+
+        (rc, out) = self.git_exec(appid, *["init"])
+        if rc != 0:
+            logger.error("Failed to init git repo:\n"+out)
+            return -1
+        
+        (rc, out) = self.git_exec(appid, *["remote", "add", "origin", origin])
+        if rc != 0:
+            logger.error("Failed to init git repo:\n"+out)
+            return -2
+
+        (rc, out) = self.git_exec(appid, *["add", "-A"])
+        if rc != 0:
+            logger.error("Failed to add files to git repo:\n"+out)
+            return -3
+        
+        (rc, out) = self.git_exec(appid, *["commit", "-m", "\"Steam Deck Sync\""])
+        if rc != 0:
+            logger.error("Failed to commit git changes:\n"+out)
+            return -4
+        
+    async def sync_now_probe(self):
+        logger.debug(f'Probing sync')
+        if not self.current_sync:
+            return 0
+                
+        logger.debug(f'Sync finished')
+        return self.current_sync.returncode
+    
+    def git_exec(self, appid, command):
+        app_local_dir = self.get_setting(f'{appid}.local')
+        output = subprocess.run(*["-C", app_local_dir, command], stdout=subprocess.PIPE)
+        return (output.returncode, output.stdout.decode('utf-8'))
+    
+    async def git_exec_async(self, appid, command):
+        app_local_dir = self.get_setting(f'{appid}.local')
+        self.current_sync = asyncio.subprocess.run(*["-C", app_local_dir, command], stdout=subprocess.PIPE)
+
+    async def settings_read(self):
+        return settings.read()
+    
+    async def settings_commit(self):
+        return settings.commit()
+
+    async def set_setting(self, key: str, value):
+        return settings.setSetting(key, value)
+
+    async def get_setting(self, key: str, defaults):
+        return settings.getSetting(key, defaults)
 
     # Asyncio-compatible long-running code, executed in a task when the plugin is loaded
     async def _main(self):

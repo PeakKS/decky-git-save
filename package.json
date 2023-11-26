@@ -1,7 +1,7 @@
 {
-  "name": "decky-plugin-template",
+  "name": "decky-git-save",
   "version": "0.0.1",
-  "description": "A template to quickly create decky plugins from scratch, based on TypeScript and webpack",
+  "description": "Decky plugin for backing up saves via git.",
   "scripts": {
     "build": "shx rm -rf dist && rollup -c",
     "watch": "rollup -c -w",
@@ -9,27 +9,30 @@
   },
   "repository": {
     "type": "git",
-    "url": "git+https://github.com/SteamDeckHomebrew/decky-plugin-template.git"
+    "url": "git+https://github.com/PeakKS/decky-git-save.git"
   },
   "keywords": [
     "decky",
     "plugin",
-    "plugin-template",
     "steam-deck",
-    "deck"
+    "deck",
+    "git",
+    "saves",
+    "sync"
   ],
-  "author": "Jonas Dellinger <jonas@dellinger.dev>",
+  "author": "PeakKS",
   "license": "BSD-3-Clause",
   "bugs": {
-    "url": "https://github.com/SteamDeckHomebrew/decky-plugin-template/issues"
+    "url": "https://github.com/PeakKS/decky-git-save/issues"
   },
-  "homepage": "https://github.com/SteamDeckHomebrew/decky-plugin-template#readme",
+  "homepage": "https://github.com/PeakKS/decky-git-save#readme",
   "devDependencies": {
     "@rollup/plugin-commonjs": "^21.1.0",
     "@rollup/plugin-json": "^4.1.0",
     "@rollup/plugin-node-resolve": "^13.3.0",
     "@rollup/plugin-replace": "^4.0.0",
     "@rollup/plugin-typescript": "^8.3.3",
+    "@types/lodash": "^4.14.191",
     "@types/react": "16.14.0",
     "@types/webpack": "^5.28.0",
     "rollup": "^2.77.1",
@@ -40,7 +43,8 @@
   },
   "dependencies": {
     "decky-frontend-lib": "^3.21.1",
-    "react-icons": "^4.4.0"
+    "react-icons": "^4.4.0",
+    "lodash": "^4.14.191"
   },
   "pnpm": {
     "peerDependencyRules": {

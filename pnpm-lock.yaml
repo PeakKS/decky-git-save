@@ -1,9 +1,16 @@
 lockfileVersion: '6.0'
 
+settings:
+  autoInstallPeers: true
+  excludeLinksFromLockfile: false
+
 dependencies:
   decky-frontend-lib:
     specifier: ^3.21.1
     version: 3.21.1
+  lodash:
+    specifier: ^4.14.191
+    version: 4.17.21
   react-icons:
     specifier: ^4.4.0
     version: 4.9.0
@@ -24,6 +31,9 @@ devDependencies:
   '@rollup/plugin-typescript':
     specifier: ^8.3.3
     version: 8.5.0(rollup@2.79.1)(tslib@2.5.2)(typescript@4.9.5)
+  '@types/lodash':
+    specifier: ^4.14.191
+    version: 4.14.202
   '@types/react':
     specifier: 16.14.0
     version: 16.14.0
@@ -193,6 +203,10 @@ packages:
 
   /@types/json-schema@7.0.12:
     resolution: {integrity: sha512-Hr5Jfhc9eYOQNPYO5WLDq/n4jqijdHNlDXjuAQkkt+mWdQR+XJToOHrsD4cPaMXpn6KO7y2+wM8AZEs8VpBLVA==}
+    dev: true
+
+  /@types/lodash@4.14.202:
+    resolution: {integrity: sha512-OvlIYQK9tNneDlS0VN54LLd5uiPCBOp7gS5Z0f1mjoJYBrtStzgmJBxONW3U6OZqdtNzZPmn9BS/7WI7BFFcFQ==}
     dev: true
 
   /@types/node@20.2.5:
@@ -618,6 +632,10 @@ packages:
     engines: {node: '>=6.11.5'}
     dev: true
 
+  /lodash@4.17.21:
+    resolution: {integrity: sha512-v2kDEe57lecTulaDIuNTPy3Ry4gLGJ6Z1O3vE1krgXZNrsQ+LFTGHVxVjcXPs17LhbZVGedAJv8XZ1tvj5FvSg==}
+    dev: false
+
   /magic-string@0.25.9:
     resolution: {integrity: sha512-RmF0AsMzgt25qzqqLc1+MbHmhdx0ojF2Fvs4XnOqz2ZOBXzzkEwc/dJQZCYHAn7v1jbVOjAZfK8msRn4BxO4VQ==}
     dependencies:
@@ -936,7 +954,3 @@ packages:
   /wrappy@1.0.2:
     resolution: {integrity: sha512-l4Sp/DRseor9wL6EvV2+TuQn63dMkPjZ/sp9XkghTEbV9KlPS1xUsZ3u7/IQO4wxtcFB4bgpQPRcR3QCvezPcQ==}
     dev: true
-
-settings:
-  autoInstallPeers: true
-  excludeLinksFromLockfile: false
