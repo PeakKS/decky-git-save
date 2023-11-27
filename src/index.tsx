@@ -27,7 +27,7 @@ import logo from "../assets/logo.svg";
 
 import * as config from "./config";
 import appState, { setAppState, useAppState } from "./state";
-import { syncNow, getGitConfig, AppGitConfig } from "./git";
+import { syncNow } from "./git";
 import { SettingsProvider, GameSettings } from "./settings";
 
 interface FocusChangeEventObject {
@@ -43,7 +43,6 @@ const Content: VFC<{ serverAPI: ServerAPI }> = ({serverAPI}) => {
   const appState = useAppState();
 
   const [runningApp, setRunningApp] = useState<AppOverview | undefined>(Router.MainRunningApp);
-  const [appConfig, setAppConfig] = useState<AppGitConfig | undefined>(undefined);
   const [disableState, setDisableState] = useState<boolean>(false);
 
   const toastError = (e: any) => {
@@ -96,6 +95,8 @@ const Content: VFC<{ serverAPI: ServerAPI }> = ({serverAPI}) => {
     bAppIsSteam = false
   }
 
+  const [fuck, setFuck] = useState("Sync Now");
+
   return (
     <>
       <PanelSection title={"Sync" + (bAppIsSteam ? " (Unavailable)" : " (Available)")}>
@@ -136,8 +137,12 @@ const Content: VFC<{ serverAPI: ServerAPI }> = ({serverAPI}) => {
           <ButtonItem 
             layout="below"
             disabled={bAppIsSteam || appState.syncing === "true"}
-            onClick={() => syncNow(Number(runningApp?.appid || 0), true)}>
-              Sync Now
+            onClick={() => {
+              syncNow(serverAPI, Number(runningApp?.appid || 0), true).then((result) => {
+                setFuck(result);
+              });
+            }}>
+              {fuck}
           </ButtonItem>
         </PanelSectionRow>
         <PanelSectionRow>
@@ -156,7 +161,7 @@ export default definePlugin((serverApi: ServerAPI) => {
   const { unregister: removeGameExitListener } = 
   SteamClient.GameSessions.RegisterForAppLifetimeNotifications((e: LifetimeNotification) => {
     if (!e.bRunning && appState.currentState.sync_on_game_exit === "true") {
-      syncNow(e.unAppID, appState.currentState.toast_auto_sync === "true");
+      syncNow(serverApi, e.unAppID, appState.currentState.toast_auto_sync === "true");
     }
   });
 

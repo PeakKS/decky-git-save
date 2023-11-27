@@ -19,31 +19,32 @@ import {
   export const SettingsContext = createContext({});
   
   type SettingsContextType = {
-    set: (key: any, value: any, immediate?: boolean) => void;
-    get: (key: any, fallback: any) => Promise<any>;
+    set: (appid: any, key: any, value: any, immediate?: boolean) => void;
+    get: (appid: any, key: any, fallback: any) => Promise<any>;
     settings: any;
   };
   
   export const SettingsProvider: FC<{ serverApi: ServerAPI }> = ({ serverApi, children }) => {
-    const [setting, setSetting] = useState<{key: any, value: any}>();
+    const [setting, setSetting] = useState<{appid: any, key: any, value: any}>();
   
     const save = useMemo(() => async (setting: any) => {
-      await serverApi.callPluginMethod('set_setting', setting);
+      await serverApi.callPluginMethod('async_set_app_setting', setting);
     }, [serverApi]);
   
-    const saveDb = useMemo(() => debounce(async (key, value) => {
-      setSetting({ key, value });
+    const saveDb = useMemo(() => debounce(async (appid, key, value) => {
+      setSetting({ appid, key, value });
     }, 1500), []);
   
-    const set = useMemo(() => (key, value, immediate = false) => {
+    const set = useMemo(() => (appid, key, value, immediate = false) => {
       if (immediate) {
-        return setSetting({ key, value });
+        return setSetting({ appid, key, value });
       }
-      return saveDb(key, value);
+      return saveDb(appid, key, value);
     }, [saveDb]) as SettingsContextType['set'];
   
-    const get: SettingsContextType['get'] = useMemo(() => async (key, fallback) => {
-      return (await serverApi.callPluginMethod('get_setting', { key, default: fallback })).result;
+    const get: SettingsContextType['get'] = useMemo(() => async (appid, key, fallback) => {
+      return (await serverApi.callPluginMethod('async_get_app_setting', 
+        { "appid": appid, "key": key, "defaults": fallback })).result;
     }, [serverApi]);
   
     useEffect(() => {
@@ -66,19 +67,19 @@ import {
   export const GameSettings: VFC<{ serverAPI: ServerAPI, appid: string}> = ({serverAPI},{appid}) => {
     const { set, get } = useSettings();
     let localDef;
-    get(appid+".local", undefined).then((response) => {
+    get(appid, "local", undefined).then((response) => {
       localDef = response;
     });
     let originDef;
-    get(appid+".origin", undefined).then((response) => {
+    get(appid, "origin", undefined).then((response) => {
       originDef = response;
     });
     let userDef;
-    get(appid+".user", undefined).then((response) => {
+    get(appid, "user", undefined).then((response) => {
       userDef = response;
     });
     let passwordDef;
-    get(appid+".password", undefined).then((response) => {
+    get(appid, "password", undefined).then((response) => {
       passwordDef = response;
     });
     const [localDir, setLocalDir] = useState<string | undefined>(localDef);
@@ -95,21 +96,21 @@ import {
               label="Save file directory"
               onClick={() => {
                 serverAPI.openFilePicker("/home/deck").then((response) => {
-                  set(appid+".local", response.path)
+                  set(appid, "local", response.path)
                   setLocalDir(response.path);
                 });
               }
             }>
-              {localDir}
+              {localDir ? localDir : localDef}
             </ButtonItem>
           </PanelSectionRow>
           <PanelSectionRow>
             <TextField
               label="Remote git URL"
               mustBeURL={true}
-              value={origin}
+              value={origin ? origin : originDef}
               onChange={(e) => {
-                set(appid+".origin", e.target.value)
+                set(appid, "origin", e.target.value)
                 setOrigin(e.target.value);
               }}
             />
@@ -117,9 +118,9 @@ import {
           <PanelSectionRow>
             <TextField
               label="Git user"
-              value={user}
+              value={user ? user : userDef}
               onChange={(e) => {
-                set(appid+".user", e.target.value)
+                set(appid, "user", e.target.value)
                 setUser(e.target.value);
               }}
             />
@@ -128,9 +129,9 @@ import {
             <TextField
               label="Git password/token"
               bIsPassword={true}
-              value={password}
+              value={password ? password : passwordDef}
               onChange={(e) => {
-                set(appid+".password", e.target.value)
+                set(appid, "password", e.target.value)
                 setPassword(e.target.value);
               }}
             />

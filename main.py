@@ -1,12 +1,11 @@
-import logging, os
+import logging, os, sys
 import subprocess
 import asyncio
-from GitPython import git
 
 # The decky plugin module is located at decky-loader/plugin
 # For easy intellisense checkout the decky-loader code one directory up
 # or add the `decky-loader/plugin` path to `python.analysis.extraPaths` in `.vscode/settings.json`
-import decky_plugin
+import decky_plugin 
 
 from settings import SettingsManager
 settingsDir = os.environ["DECKY_PLUGIN_SETTINGS_DIR"]
@@ -23,61 +22,39 @@ class Plugin:
     current_sync = None
 
     async def sync_now(self, appid):
-        logger.debug(f'Syncing appid {appid} now')
+        try:
+            logger.debug(f'Syncing appid {appid} ({type(appid)}) now in {self} ({type(self)})')
+            local    = self.get_app_setting(self, appid, 'local',    'undefined')
+            origin   = self.get_app_setting(self, appid, 'origin',   'undefined')
+            user     = self.get_app_setting(self, appid, 'user',     'undefined')
+            password = self.get_app_setting(self, appid, 'password', 'undefined')
 
-        local = self.get_setting(f'{appid}.local')
-        origin = self.get_setting(f'{appid}.origin')
-        user = self.get_setting(f'{appid}.user')
-        password = self.get_setting(f'{appid}.password')
+            logger.debug(f'local: {local} origin: {origin} user: {user} password: {password}')
+            return f'local: {local} origin: {origin} user: {user} password: {password}'
+        except Exception as e:
+            return f'Uh oh: {e}'
 
-        (rc, out) = self.git_exec(appid, *["init"])
-        if rc != 0:
-            logger.error("Failed to init git repo:\n"+out)
-            return -1
+    def set_app_setting(self, appid: str, key: str, value):
+        logger.debug(f'SET App: {appid} setting {value} for key {key}')
+        settings.settings[appid][key] = value
+        settings.setSetting("balls", "suck")
+
+    def get_app_setting(self, appid: str, key: str, defaults):
+        logger.debug(f'GET App: {appid} getting key {key}')
+        app_settings = settings.settings.get(appid)
+        if app_settings == None:
+            logger.debug(f'GET App: {appid} no value for key {key}. Returning default {defaults}')
+            return defaults
         
-        (rc, out) = self.git_exec(appid, *["remote", "add", "origin", origin])
-        if rc != 0:
-            logger.error("Failed to init git repo:\n"+out)
-            return -2
-
-        (rc, out) = self.git_exec(appid, *["add", "-A"])
-        if rc != 0:
-            logger.error("Failed to add files to git repo:\n"+out)
-            return -3
-        
-        (rc, out) = self.git_exec(appid, *["commit", "-m", "\"Steam Deck Sync\""])
-        if rc != 0:
-            logger.error("Failed to commit git changes:\n"+out)
-            return -4
-        
-    async def sync_now_probe(self):
-        logger.debug(f'Probing sync')
-        if not self.current_sync:
-            return 0
-                
-        logger.debug(f'Sync finished')
-        return self.current_sync.returncode
+        setting = app_settings.get(key, defaults)
+        logger.debug(f'GET App: {appid} got {setting} for key {key}')
+        return setting
     
-    def git_exec(self, appid, command):
-        app_local_dir = self.get_setting(f'{appid}.local')
-        output = subprocess.run(*["-C", app_local_dir, command], stdout=subprocess.PIPE)
-        return (output.returncode, output.stdout.decode('utf-8'))
+    async def async_set_app_setting(self, appid: str, key: str, value):
+        self.set_app_setting(self, appid, key, value)
     
-    async def git_exec_async(self, appid, command):
-        app_local_dir = self.get_setting(f'{appid}.local')
-        self.current_sync = asyncio.subprocess.run(*["-C", app_local_dir, command], stdout=subprocess.PIPE)
-
-    async def settings_read(self):
-        return settings.read()
-    
-    async def settings_commit(self):
-        return settings.commit()
-
-    async def set_setting(self, key: str, value):
-        return settings.setSetting(key, value)
-
-    async def get_setting(self, key: str, defaults):
-        return settings.getSetting(key, defaults)
+    async def async_get_app_setting(self, appid: str, key: str, defaults):
+        return self.get_app_setting(self, appid, key, defaults)
 
     # Asyncio-compatible long-running code, executed in a task when the plugin is loaded
     async def _main(self):
