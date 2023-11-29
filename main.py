@@ -26,6 +26,10 @@ class Plugin:
         user     = self.get_app_setting(self, appid, 'user',     '')
         password = self.get_app_setting(self, appid, 'password', '')
 
+        if local == '' or origin == '' or user == '' or password == '':
+            logger.debug(f'[APP {appid}]: Sync skipped (missing value)')
+            return "skipped"
+
         # Format username+password origin URL
         remote_protocol = origin.split("://", 1)[0]
         remote_url = origin.split("://", 1)[1]
@@ -98,9 +102,9 @@ class Plugin:
                                      "-c", "user.email='steamdeck@steampowered.com'",
                                      "commit", "-m", "Git Sync"])
         except subprocess.CalledProcessError as e:
-            logger.debug(e.output.decode("utf-8"))
             # No changes to commit, ignore
             if "nothing to commit" in e.output.decode("utf-8"):
+                logger.debug(f'[APP {appid}]: Sync skipped (no commits)')
                 pass
             else:
                 raise e
@@ -116,7 +120,7 @@ class Plugin:
             raise e
 
         logger.debug(f'[APP {appid}]: SYNC FINISHED')
-        return "SUCCESS:Sync finished"
+        return "succeeded"
 
     def set_app_setting(self, appid: str, key: str, value):
         app_settings = settings.getSetting(appid, {})
