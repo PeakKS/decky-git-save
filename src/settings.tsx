@@ -12,39 +12,40 @@ import {
     PanelSection,
     PanelSectionRow,
     ButtonItem,
-    TextField
+    TextField,
   } from 'decky-frontend-lib';
   import { debounce } from 'lodash';
-    
+
   export const SettingsContext = createContext({});
   
   type SettingsContextType = {
-    set: (appid: any, key: any, value: any, immediate?: boolean) => void;
-    get: (appid: any, key: any, fallback: any) => Promise<any>;
+    set: (key: any, value: any, immediate?: boolean) => void;
+    get: (key: any, fallback: any) => Promise<any>;
     settings: any;
   };
   
-  export const SettingsProvider: FC<{ serverApi: ServerAPI }> = ({ serverApi, children }) => {
-    const [setting, setSetting] = useState<{appid: any, key: any, value: any}>();
+  export const SettingsProvider: FC<{ serverApi: ServerAPI, appid: string }> = ({ serverApi, appid, children }) => {
+    const [setting, setSetting] = useState<{key: any, value: any}>();
   
     const save = useMemo(() => async (setting: any) => {
-      await serverApi.callPluginMethod('async_set_app_setting', setting);
+      await serverApi.callPluginMethod('async_set_app_setting',
+        { "appid": String(appid), "key": setting.key, "value": setting.value });
     }, [serverApi]);
   
-    const saveDb = useMemo(() => debounce(async (appid, key, value) => {
-      setSetting({ appid, key, value });
-    }, 1500), []);
+    const saveDb = useMemo(() => debounce(async (key, value) => {
+      setSetting({ key, value });
+    }, 500), []);
   
-    const set = useMemo(() => (appid, key, value, immediate = false) => {
+    const set = useMemo(() => (key, value, immediate = false) => {
       if (immediate) {
-        return setSetting({ appid, key, value });
+        return setSetting({ key, value });
       }
-      return saveDb(appid, key, value);
+      return saveDb(key, value);
     }, [saveDb]) as SettingsContextType['set'];
   
-    const get: SettingsContextType['get'] = useMemo(() => async (appid, key, fallback) => {
+    const get: SettingsContextType['get'] = useMemo(() => async (key, fallback) => {
       return (await serverApi.callPluginMethod('async_get_app_setting', 
-        { "appid": appid, "key": key, "defaults": fallback })).result;
+        { "appid": String(appid), "key": key, "defaults": fallback })).result;
     }, [serverApi]);
   
     useEffect(() => {
@@ -64,28 +65,35 @@ import {
   
   export default useSettings;
 
-  export const GameSettings: VFC<{ serverAPI: ServerAPI, appid: string}> = ({serverAPI},{appid}) => {
+  export const GameSettings: VFC<{ serverAPI: ServerAPI, setDisableSync: Function}> = ({ serverAPI, setDisableSync }) => {
     const { set, get } = useSettings();
-    let localDef;
-    get(appid, "local", undefined).then((response) => {
-      localDef = response;
-    });
-    let originDef;
-    get(appid, "origin", undefined).then((response) => {
-      originDef = response;
-    });
-    let userDef;
-    get(appid, "user", undefined).then((response) => {
-      userDef = response;
-    });
-    let passwordDef;
-    get(appid, "password", undefined).then((response) => {
-      passwordDef = response;
-    });
-    const [localDir, setLocalDir] = useState<string | undefined>(localDef);
-    const [origin, setOrigin] = useState<string | undefined>(originDef);
-    const [user, setUser] = useState<string | undefined>(userDef);
-    const [password, setPassword] = useState<string | undefined>(passwordDef);
+
+    const [localDir, setLocalDir] = useState<string>("");
+    const [origin, setOrigin] = useState<string>("");
+    const [user, setUser] = useState<string>("");
+    const [password, setPassword] = useState<string>("");
+
+    useEffect(() => {
+      if (localDir && origin && user && password) {
+        setDisableSync(false);
+      } else {
+        setDisableSync(true);
+      }
+    }, [localDir, origin, user, password]);
+
+    //Only read config on initial load
+    useEffect(() => {
+      (async () => {
+        const localDirRead = await get("local", "");
+        const originRead = await get("origin", "");
+        const userRead = await get("user", "");
+        const passRead = await get("password", "");
+        setLocalDir(localDirRead);
+        setOrigin(originRead);
+        setUser(userRead);
+        setPassword(passRead);
+      })();
+    }, [get]);
 
     return (
       <>
@@ -95,33 +103,33 @@ import {
               layout="below"
               label="Save file directory"
               onClick={() => {
-                serverAPI.openFilePicker("/home/deck").then((response) => {
-                  set(appid, "local", response.path)
+                serverAPI.openFilePicker(localDir || "/home/deck").then((response) => {
                   setLocalDir(response.path);
+                  set("local", response.path);
                 });
               }
             }>
-              {localDir ? localDir : localDef}
+              {localDir}
             </ButtonItem>
           </PanelSectionRow>
           <PanelSectionRow>
             <TextField
               label="Remote git URL"
               mustBeURL={true}
-              value={origin ? origin : originDef}
+              value={origin}
               onChange={(e) => {
-                set(appid, "origin", e.target.value)
                 setOrigin(e.target.value);
+                set("origin", e.target.value)
               }}
             />
           </PanelSectionRow>
           <PanelSectionRow>
             <TextField
               label="Git user"
-              value={user ? user : userDef}
+              value={user}
               onChange={(e) => {
-                set(appid, "user", e.target.value)
                 setUser(e.target.value);
+                set("user", e.target.value)
               }}
             />
           </PanelSectionRow>
@@ -129,10 +137,10 @@ import {
             <TextField
               label="Git password/token"
               bIsPassword={true}
-              value={password ? password : passwordDef}
+              value={password}
               onChange={(e) => {
-                set(appid, "password", e.target.value)
                 setPassword(e.target.value);
+                set("password", e.target.value)
               }}
             />
           </PanelSectionRow>

@@ -4,23 +4,17 @@ import {
   LifetimeNotification,
   AppOverview,
   Marquee,
-  DialogButton,
   showModal,
   ModalRoot,
-  Menu,
-  MenuItem,
-  TextField,
   PanelSection,
   PanelSectionRow,
   Router,
   ServerAPI,
-  showContextMenu,
   staticClasses,
   ToggleField,
   DialogHeader,
-  DialogBodyText,
 } from "decky-frontend-lib";
-import { VFC, useState, useEffect, useMemo } from "react";
+import { VFC, useState, useEffect } from "react";
 import { FaGitAlt } from "react-icons/fa";
 import { debounce, throttle, wrap } from "lodash";
 import logo from "../assets/logo.svg";
@@ -43,17 +37,7 @@ const Content: VFC<{ serverAPI: ServerAPI }> = ({serverAPI}) => {
   const appState = useAppState();
 
   const [runningApp, setRunningApp] = useState<AppOverview | undefined>(Router.MainRunningApp);
-  const [disableState, setDisableState] = useState<boolean>(false);
-
-  const toastError = (e: any) => {
-    serverAPI.toaster.toast({
-      title: "Git Save Error",
-      body: String(e),
-      critical: true,
-      duration: 2000,
-      icon: <FaGitAlt/>
-    });
-  };
+  const [disableSync, setDisableSync] = useState<boolean>(false);
 
   const refresh = debounce(
     wrap(
@@ -61,8 +45,8 @@ const Content: VFC<{ serverAPI: ServerAPI }> = ({serverAPI}) => {
         setRunningApp(Router.MainRunningApp);
       },
       (f) => {
-        setDisableState(true);
-        return f().finally(() => setDisableState(false));
+        setDisableSync(true);
+        return f().finally(() => setDisableSync(false));
       }
     ),
     config.RefreshWait,
@@ -95,12 +79,14 @@ const Content: VFC<{ serverAPI: ServerAPI }> = ({serverAPI}) => {
     bAppIsSteam = false
   }
 
-  const [fuck, setFuck] = useState("Sync Now");
+  let appid = Router.MainRunningApp?.appid || "0";
+
+  const [syncDebug, setSyncDebug] = useState("Sync Now");
 
   return (
     <>
       <PanelSection title={"Sync" + (bAppIsSteam ? " (Unavailable)" : " (Available)")}>
-        <Marquee>{runningApp?.display_name || "Steam"}</Marquee>
+        <Marquee>{(runningApp?.display_name || "Steam") + ` (${appid})`}</Marquee>
         <PanelSectionRow>
           <ToggleField
             label="Sync after closing a game"
@@ -123,9 +109,9 @@ const Content: VFC<{ serverAPI: ServerAPI }> = ({serverAPI}) => {
             onClick={() => {
               showModal((
                 <ModalRoot>
-                  <SettingsProvider serverApi={serverAPI}>
+                  <SettingsProvider serverApi={serverAPI} appid={appid}>
                     <DialogHeader>Git Sync Settings ({runningApp?.display_name})</DialogHeader>
-                    <GameSettings serverAPI={serverAPI} appid={String(runningApp?.appid)}/>
+                    <GameSettings serverAPI={serverAPI} setDisableSync={setDisableSync}/>
                   </SettingsProvider>
                 </ModalRoot>
               ));
@@ -136,13 +122,13 @@ const Content: VFC<{ serverAPI: ServerAPI }> = ({serverAPI}) => {
         <PanelSectionRow>
           <ButtonItem 
             layout="below"
-            disabled={bAppIsSteam || appState.syncing === "true"}
+            disabled={disableSync || bAppIsSteam || appState.syncing === "true"}
             onClick={() => {
-              syncNow(serverAPI, Number(runningApp?.appid || 0), true).then((result) => {
-                setFuck(result);
+              syncNow(serverAPI, appid, true).then((result) => {
+                setSyncDebug(result);
               });
             }}>
-              {fuck}
+              {syncDebug}
           </ButtonItem>
         </PanelSectionRow>
         <PanelSectionRow>
@@ -161,7 +147,7 @@ export default definePlugin((serverApi: ServerAPI) => {
   const { unregister: removeGameExitListener } = 
   SteamClient.GameSessions.RegisterForAppLifetimeNotifications((e: LifetimeNotification) => {
     if (!e.bRunning && appState.currentState.sync_on_game_exit === "true") {
-      syncNow(serverApi, e.unAppID, appState.currentState.toast_auto_sync === "true");
+      syncNow(serverApi, String(e.unAppID), appState.currentState.toast_auto_sync === "true");
     }
   });
 

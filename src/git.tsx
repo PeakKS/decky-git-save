@@ -6,19 +6,28 @@ const toastInfo = (msg: string) => {
     getServerApi().toaster.toast({
         title: "Git Sync",
         body: msg,
-        critical: true,
         duration: 5000,
         icon: <FaGitAlt />
       });
 };
 
-export async function syncNow(serverAPI: ServerAPI, appid: number, toast: boolean): Promise<string> {
+const toastError = (msg: string) => {
+    getServerApi().toaster.toast({
+        title: "Git Sync Error",
+        body: msg,
+        duration: 5000,
+        critical: true,
+        icon: <FaGitAlt />
+      });
+};
+
+export async function syncNow(serverAPI: ServerAPI, appid: string, toast: boolean): Promise<string> {
     const start = new Date();
-    let sAppId = String(appid);
-    toastInfo(`Syncing app ${sAppId}`)
     setAppState("syncing", "true");
     let string = "nothing"
-    await serverAPI.callPluginMethod("sync_now", { "appid": sAppId}).then((response) => {
+
+    //                                  appid is supposed to already be a string. It is not. Force it.
+    await serverAPI.callPluginMethod("sync_now", { "appid": String(appid)}).then((response) => {
         if (response.success) {
             string = `Sync success: ${response.result}`;
         } else {
@@ -28,5 +37,9 @@ export async function syncNow(serverAPI: ServerAPI, appid: number, toast: boolea
         string = `Failed to call plugin: ${reason}`;
     });
     setAppState("syncing", "false");
+    if (toast) {
+        const elapsed = (new Date().getTime()) - start.getTime();
+        toastInfo(`Synced app ${appid} in ${elapsed}s`)
+    }
     return string;
 }

@@ -1,6 +1,6 @@
 import logging, os, sys
 import subprocess
-import asyncio
+from datetime import datetime
 
 # The decky plugin module is located at decky-loader/plugin
 # For easy intellisense checkout the decky-loader code one directory up
@@ -16,71 +16,142 @@ logger.info('Git Sync settings path: {}'.format(os.path.join(settingsDir, 'setti
 settings = SettingsManager(name="settings", settings_directory=settingsDir)
 settings.read()
 
-git_bin = "/usr/bin/git"
-
 class Plugin:
     current_sync = None
 
     async def sync_now(self, appid):
-        try:
-            logger.debug(f'Syncing appid {appid} ({type(appid)}) now in {self} ({type(self)})')
-            local    = self.get_app_setting(self, appid, 'local',    'undefined')
-            origin   = self.get_app_setting(self, appid, 'origin',   'undefined')
-            user     = self.get_app_setting(self, appid, 'user',     'undefined')
-            password = self.get_app_setting(self, appid, 'password', 'undefined')
+        logger.debug(f'[APP {appid}]: SYNCING')
+        local    = self.get_app_setting(self, appid, 'local',    '')
+        origin   = self.get_app_setting(self, appid, 'origin',   '')
+        user     = self.get_app_setting(self, appid, 'user',     '')
+        password = self.get_app_setting(self, appid, 'password', '')
 
-            logger.debug(f'local: {local} origin: {origin} user: {user} password: {password}')
-            return f'local: {local} origin: {origin} user: {user} password: {password}'
+        # Format username+password origin URL
+        remote_protocol = origin.split("://", 1)[0]
+        remote_url = origin.split("://", 1)[1]
+        remote = f'{remote_protocol}://{user}:{password}@{remote_url}'
+
+        logger.debug(
+            f'''[APP {appid}]: SYNC
+            \tlocal: {local} 
+            \torigin: {origin} 
+            \tuser: {user} 
+            \tpassword: {password}'''
+        )
+
+        # Error if local path is not suitable
+        if not (os.path.isdir(local) and os.access(local, os.R_OK) and os.access(local, os.W_OK)):
+            logger.error(f'[APP {appid}]: SYNC FAILED: BAD LOCAL PATH')
+            raise Exception(f'Bad local path "{local}"')
+
+        # Init repo
+        try:
+            error = subprocess.check_output(["git", "-C", local, "init"])
         except Exception as e:
-            return f'Uh oh: {e}'
+            logger.error(e)
+            raise e
+
+        # Add remote
+        try:
+            subprocess.check_output(["git", "-C", local, "remote", "add", "decky-git-sync", remote])       
+        except subprocess.CalledProcessError as e:
+            # Remote already exists, try removing first
+            if e.returncode == 3:
+                try:
+                    subprocess.check_output(["git", "-C", local, "remote", "remove", "decky-git-sync"])
+                except subprocess.CalledProcessError as e:
+                    logger.error(e.output)
+                    raise e
+                except Exception as e:
+                    logger.error(e)
+                    raise e
+                finally:
+                    subprocess.check_output(["git", "-C", local, "remote", "add", "decky-git-sync", remote])
+            else:
+                logger.error(e)
+                raise e
+        except Exception as e:
+            logger.error(e)
+            raise e
+            
+        # Attempt pull
+        try:
+            subprocess.check_output(["git", "-C", local, "pull", "decky-git-sync", "master"])
+        except subprocess.CalledProcessError as e:
+            if "fatal: couldn't find remote ref master" in e.output.decode("utf-8"):
+                logger.info("Remote missing master, ignoring and pushing")
+        except Exception as e:
+            logger.error(e)
+            raise e
+        
+        # Add Everything
+        try:
+            subprocess.check_output(["git", "-C", local, "add", "-A"])
+        except Exception as e:
+            logger.error(e)
+            raise e
+        
+        # Commit changes
+        try:
+            subprocess.check_output(["git", "-C", local,
+                                     "-c", "user.name='deck'",
+                                     "-c", "user.email='steamdeck@steampowered.com'",
+                                     "commit", "-m", "Git Sync"])
+        except subprocess.CalledProcessError as e:
+            logger.debug(e.output.decode("utf-8"))
+            # No changes to commit, ignore
+            if "nothing to commit" in e.output.decode("utf-8"):
+                pass
+            else:
+                raise e
+        except Exception as e:
+            logger.error(e)
+            raise e
+            
+        # Push commits
+        try:
+            subprocess.check_output(["git", "-C", local, "push", "decky-git-sync", "master"])
+        except Exception as e:
+            logger.error(e)
+            raise e
+
+        logger.debug(f'[APP {appid}]: SYNC FINISHED')
+        return "SUCCESS:Sync finished"
 
     def set_app_setting(self, appid: str, key: str, value):
-        logger.debug(f'SET App: {appid} setting {value} for key {key}')
-        settings.settings[appid][key] = value
-        settings.setSetting("balls", "suck")
+        app_settings = settings.getSetting(appid, {})
+        app_settings[key] = value
+        settings.setSetting(appid, app_settings)
+        logger.debug(f'[APP {appid}]: SET "{key}": "{value}"')
 
     def get_app_setting(self, appid: str, key: str, defaults):
-        logger.debug(f'GET App: {appid} getting key {key}')
-        app_settings = settings.settings.get(appid)
+        app_settings = settings.getSetting(appid)
         if app_settings == None:
-            logger.debug(f'GET App: {appid} no value for key {key}. Returning default {defaults}')
+            logger.debug(f'[APP {appid}]: GET "{key}": {defaults} (DEFAULT NO APP SETTINGS)"')
             return defaults
         
-        setting = app_settings.get(key, defaults)
-        logger.debug(f'GET App: {appid} got {setting} for key {key}')
-        return setting
+        ret = app_settings.get(key)
+        if ret == None:
+            logger.debug(f'[APP {appid}]: GET "{key}": {defaults} (DEFAULT NO APP KEY)"')
+            return defaults
+        
+        logger.debug(f'[APP {appid}]: GET "{key}": {ret}"')
+        return ret
     
-    async def async_set_app_setting(self, appid: str, key: str, value):
+    async def async_set_app_setting(self, appid, key, value):
         self.set_app_setting(self, appid, key, value)
     
-    async def async_get_app_setting(self, appid: str, key: str, defaults):
+    async def async_get_app_setting(self, appid, key, defaults):
         return self.get_app_setting(self, appid, key, defaults)
 
     # Asyncio-compatible long-running code, executed in a task when the plugin is loaded
     async def _main(self):
-        decky_plugin.logger.info("Hello World!")
+        logger.info("Initializing...")
+        for appid in settings.settings:
+            logger.debug(f'[APP {appid}]: READ {settings.settings[appid]}')
+        logger.info("Initialization finished.")
 
     # Function called first during the unload process, utilize this to handle your plugin being removed
     async def _unload(self):
-        decky_plugin.logger.info("Goodbye World!")
+        logger.info("Goodbye World!")
         pass
-
-    # Migrations that should be performed before entering `_main()`.
-    async def _migration(self):
-        decky_plugin.logger.info("Migrating")
-        # Here's a migration example for logs:
-        # - `~/.config/decky-template/template.log` will be migrated to `decky_plugin.DECKY_PLUGIN_LOG_DIR/template.log`
-        decky_plugin.migrate_logs(os.path.join(decky_plugin.DECKY_USER_HOME,
-                                               ".config", "decky-template", "template.log"))
-        # Here's a migration example for settings:
-        # - `~/homebrew/settings/template.json` is migrated to `decky_plugin.DECKY_PLUGIN_SETTINGS_DIR/template.json`
-        # - `~/.config/decky-template/` all files and directories under this root are migrated to `decky_plugin.DECKY_PLUGIN_SETTINGS_DIR/`
-        decky_plugin.migrate_settings(
-            os.path.join(decky_plugin.DECKY_HOME, "settings", "template.json"),
-            os.path.join(decky_plugin.DECKY_USER_HOME, ".config", "decky-template"))
-        # Here's a migration example for runtime data:
-        # - `~/homebrew/template/` all files and directories under this root are migrated to `decky_plugin.DECKY_PLUGIN_RUNTIME_DIR/`
-        # - `~/.local/share/decky-template/` all files and directories under this root are migrated to `decky_plugin.DECKY_PLUGIN_RUNTIME_DIR/`
-        decky_plugin.migrate_runtime(
-            os.path.join(decky_plugin.DECKY_HOME, "template"),
-            os.path.join(decky_plugin.DECKY_USER_HOME, ".local", "share", "decky-template"))
