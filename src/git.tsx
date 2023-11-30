@@ -27,16 +27,18 @@ export async function syncNow(serverAPI: ServerAPI, appid: string, toast: boolea
     let string = "nothing"
 
     //                                  appid is supposed to already be a string. It is not. Force it.
-    await serverAPI.callPluginMethod("sync_now", { "appid": String(appid)}).then((response) => {
+    await serverAPI.callPluginMethod<{appid: string}, string>("sync_now", { "appid": String(appid)}).then((response) => {
         if (response.success) {
             string = `Sync ${response.result}`;
             if (toast) {
                 if (response.result == "succeeded") {
                     toastInfo(`Synced app ${appid} in ${((new Date().getTime()) - start.getTime())/1000}s`)
-                } else if (response.result == "skipped" && toastSkips) {
-                    toastInfo(`Sync app ${appid} ${response.result}`)
+                } else if ((response.result == "skipped")) {
+                    if (toastSkips) {
+                        toastInfo(`Skipped sync app ${appid} ${response.result}`)
+                    }
                 } else {
-                    toastInfo(`Sync app ${appid} ${response.result}`)
+                    toastInfo(`Sync app ${appid} error: ${response.result}`)
                 }
             }
         } else {
