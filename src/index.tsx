@@ -110,6 +110,14 @@ const Content: VFC<{ serverAPI: ServerAPI }> = ({serverAPI}) => {
           />
         </PanelSectionRow>
         <PanelSectionRow>
+          <ToggleField
+            disabled={(appState.sync_on_game_entry != "true") && (appState.sync_on_game_exit != "true")}
+            label="Toast when sync was skipped"
+            checked={appState.toast_skipped === "true"}
+            onChange={(e) => setAppState("toast_skipped", e ? "true" : "false", true)}
+          />
+        </PanelSectionRow>
+        <PanelSectionRow>
           <ButtonItem
             layout="below"
             disabled={bAppIsSteam}
