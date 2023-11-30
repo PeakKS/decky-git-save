@@ -89,6 +89,13 @@ const Content: VFC<{ serverAPI: ServerAPI }> = ({serverAPI}) => {
         <Marquee>{(runningApp?.display_name || "Steam") + ` (${appid})`}</Marquee>
         <PanelSectionRow>
           <ToggleField
+            label="Sync upon opening a game"
+            checked={appState.sync_on_game_entry === "true"}
+            onChange={(e) => setAppState("sync_on_game_entry", e ? "true" : "false", true)}
+          />
+        </PanelSectionRow>
+        <PanelSectionRow>
+          <ToggleField
             label="Sync after closing a game"
             checked={appState.sync_on_game_exit === "true"}
             onChange={(e) => setAppState("sync_on_game_exit", e ? "true" : "false", true)}
@@ -96,7 +103,7 @@ const Content: VFC<{ serverAPI: ServerAPI }> = ({serverAPI}) => {
         </PanelSectionRow>
         <PanelSectionRow>
           <ToggleField
-            disabled={appState.sync_on_game_exit != "true"}
+            disabled={(appState.sync_on_game_entry != "true") && (appState.sync_on_game_exit != "true")}
             label="Toast after auto sync"
             checked={appState.toast_auto_sync === "true"}
             onChange={(e) => setAppState("toast_auto_sync", e ? "true" : "false", true)}
@@ -146,7 +153,9 @@ export default definePlugin((serverApi: ServerAPI) => {
 
   const { unregister: removeGameExitListener } = 
   SteamClient.GameSessions.RegisterForAppLifetimeNotifications((e: LifetimeNotification) => {
-    if (!e.bRunning && appState.currentState.sync_on_game_exit === "true") {
+    if (e.bRunning && appState.currentState.sync_on_game_entry === "true") {
+      syncNow(serverApi, String(e.unAppID), appState.currentState.toast_auto_sync === "true");
+    }else if (!e.bRunning && appState.currentState.sync_on_game_exit === "true") {
       syncNow(serverApi, String(e.unAppID), appState.currentState.toast_auto_sync === "true");
     }
   });

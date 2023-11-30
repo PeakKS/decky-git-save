@@ -136,10 +136,10 @@ class Plugin:
         
         ret = app_settings.get(key)
         if ret == None:
-            logger.debug(f'[APP {appid}]: GET "{key}": {defaults} (DEFAULT NO APP KEY)"')
+            logger.debug(f'[APP {appid}]: GET "{key}": "{defaults}" (DEFAULT NO APP KEY)')
             return defaults
         
-        logger.debug(f'[APP {appid}]: GET "{key}": {ret}"')
+        logger.debug(f'[APP {appid}]: GET "{key}": "{ret}"')
         return ret
     
     async def async_set_app_setting(self, appid, key, value):
@@ -147,6 +147,15 @@ class Plugin:
     
     async def async_get_app_setting(self, appid, key, defaults):
         return self.get_app_setting(self, appid, key, defaults)
+    
+    async def set_config(self, key: str, value: str):
+        logger.debug(f'[GLOBAL]: SET "{key}": {value}"')
+        settings.setSetting(key, value)
+
+    async def get_config(self, key: str, defaults: str):
+        ret = settings.getSetting(key, defaults)
+        logger.debug(f'[GLOBAL]: GET "{key}": {ret}"')
+        return ret
 
     # Asyncio-compatible long-running code, executed in a task when the plugin is loaded
     async def _main(self):

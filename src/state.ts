@@ -2,12 +2,10 @@ import { ServerAPI } from "decky-frontend-lib";
 import { useEffect, useState } from "react";
 
 type State = {
-  sync_on_game_exit: string;
   syncing: string;
-  bisync_enabled: string;
-  experimental_menu: string;
+  sync_on_game_entry: string;
+  sync_on_game_exit: string;
   toast_auto_sync: string;
-  destination_directory: string;
 };
 
 class AppState {
@@ -15,11 +13,9 @@ class AppState {
 
   private _currentState: State = {
     syncing: "false",
+    sync_on_game_entry: "true",
     sync_on_game_exit: "true",
-    bisync_enabled: "false",
-    experimental_menu: "false",
-    toast_auto_sync: "true",
-    destination_directory: "decky-cloud-save"
+    toast_auto_sync: "true"
   };
 
   private _serverApi: ServerAPI = null!;
@@ -35,21 +31,35 @@ class AppState {
   public async initialize(serverApi: ServerAPI) {
     this._serverApi = serverApi;
 
-    const data = await serverApi.callPluginMethod<{}, string[][]>("get_config", {});
-    if (data.success) {
-      data.result.forEach((e) => this.setState(e[0] as keyof State, e[1]));
-    } else {
-      console.error(data);
-    }
+    await serverApi.callPluginMethod<{ key: string, defaults: string}, string>('get_config', 
+        { "key": "sync_on_game_entry", "defaults": "true" }).then((response) => {
+          if (response.success) {
+            this.setState("sync_on_game_entry", response.result);
+          }
+        });
+    
+    await serverApi.callPluginMethod<{ key: string, defaults: string}, string>('get_config', 
+        { "key": "sync_on_game_exit", "defaults": "true" }).then((response) => {
+          if (response.success) {
+            this.setState("sync_on_game_exit", response.result);
+          }
+        });
+
+    await serverApi.callPluginMethod<{ key: string, defaults: string}, string>('get_config', 
+        { "key": "toast_auto_sync", "defaults": "true" }).then((response) => {
+          if (response.success) {
+            this.setState("toast_auto_sync", response.result);
+          }
+        });
   }
 
   public setState = (key: keyof State, value: string, persist = false) => {
     this._currentState = { ...this.currentState, [key]: value };
-
     console.log(key, value, persist);
 
     if (persist) {
-      this.serverApi.callPluginMethod<{ key: string; value: string }, null>("set_config", { key, value }).then(e => console.log(e));
+      this.serverApi.callPluginMethod<{ key: string; value: string }, null>("set_config",
+          { key, value }).then(e => console.log(e));
     }
 
     this._subscribers.forEach((e) => e.callback(this.currentState));
@@ -68,17 +78,7 @@ class AppState {
       this._subscribers.splice(index, 1);
     }
   };
-  public get bidirectionalSync() {
-    return this.currentState.bisync_enabled;
-  }
-  public get experimental_menu() {
-    return this.currentState.experimental_menu;
-  }
 
-
-  public setbisync_enabled = (value: string, persist = false) => {
-    this.setState("bisync_enabled", value, persist);
-  };
 }
 
 const appState = new AppState();
@@ -101,5 +101,4 @@ export const useAppState = () => {
 };
 
 export const setAppState = appState.setState;
-export const setbisync_enabled = appState.setbisync_enabled;
 export const getServerApi = () => appState.serverApi;
