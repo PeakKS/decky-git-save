@@ -28,7 +28,8 @@ import {
     const [setting, setSetting] = useState<{key: any, value: any}>();
   
     const save = useMemo(() => async (setting: any) => {
-      await serverApi.callPluginMethod('async_set_app_setting',
+      await serverApi.callPluginMethod<{appid: string, key: string, value: string}, null>
+        ('async_set_app_setting',
         { "appid": String(appid), "key": setting.key, "value": setting.value });
     }, [serverApi]);
   
@@ -44,7 +45,8 @@ import {
     }, [saveDb]) as SettingsContextType['set'];
   
     const get: SettingsContextType['get'] = useMemo(() => async (key, fallback) => {
-      return (await serverApi.callPluginMethod('async_get_app_setting', 
+      return (await serverApi.callPluginMethod<{appid: string, key: string, defaults: string}, string>
+        ('async_get_app_setting', 
         { "appid": String(appid), "key": key, "defaults": fallback })).result;
     }, [serverApi]);
   
