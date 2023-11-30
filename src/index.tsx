@@ -131,7 +131,7 @@ const Content: VFC<{ serverAPI: ServerAPI }> = ({serverAPI}) => {
             layout="below"
             disabled={disableSync || bAppIsSteam || appState.syncing === "true"}
             onClick={() => {
-              syncNow(serverAPI, appid, true).then((result) => {
+              syncNow(serverAPI, appid, true, true).then((result) => {
                 setSyncDebug(result);
               });
             }}>
@@ -154,9 +154,13 @@ export default definePlugin((serverApi: ServerAPI) => {
   const { unregister: removeGameExitListener } = 
   SteamClient.GameSessions.RegisterForAppLifetimeNotifications((e: LifetimeNotification) => {
     if (e.bRunning && appState.currentState.sync_on_game_entry === "true") {
-      syncNow(serverApi, String(e.unAppID), appState.currentState.toast_auto_sync === "true");
+      syncNow(serverApi, String(e.unAppID),
+        appState.currentState.toast_auto_sync === "true",
+        appState.currentState.toast_skipped === "true");
     }else if (!e.bRunning && appState.currentState.sync_on_game_exit === "true") {
-      syncNow(serverApi, String(e.unAppID), appState.currentState.toast_auto_sync === "true");
+      syncNow(serverApi, String(e.unAppID),
+        appState.currentState.toast_auto_sync === "true",
+        appState.currentState.toast_skipped === "true");
     }
   });
 

@@ -21,7 +21,7 @@ const toastError = (msg: string) => {
       });
 };
 
-export async function syncNow(serverAPI: ServerAPI, appid: string, toast: boolean): Promise<string> {
+export async function syncNow(serverAPI: ServerAPI, appid: string, toast: boolean, toastSkips: boolean): Promise<string> {
     const start = new Date();
     setAppState("syncing", "true");
     let string = "nothing"
@@ -33,6 +33,8 @@ export async function syncNow(serverAPI: ServerAPI, appid: string, toast: boolea
             if (toast) {
                 if (response.result == "succeeded") {
                     toastInfo(`Synced app ${appid} in ${((new Date().getTime()) - start.getTime())/1000}s`)
+                } else if (response.result == "skipped" && toastSkips) {
+                    toastInfo(`Sync app ${appid} ${response.result}`)
                 } else {
                     toastInfo(`Sync app ${appid} ${response.result}`)
                 }

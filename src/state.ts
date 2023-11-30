@@ -6,6 +6,7 @@ type State = {
   sync_on_game_entry: string;
   sync_on_game_exit: string;
   toast_auto_sync: string;
+  toast_skipped: string;
 };
 
 class AppState {
@@ -15,7 +16,8 @@ class AppState {
     syncing: "false",
     sync_on_game_entry: "true",
     sync_on_game_exit: "true",
-    toast_auto_sync: "true"
+    toast_auto_sync: "true",
+    toast_skipped: "false"
   };
 
   private _serverApi: ServerAPI = null!;
@@ -49,6 +51,13 @@ class AppState {
         { "key": "toast_auto_sync", "defaults": "true" }).then((response) => {
           if (response.success) {
             this.setState("toast_auto_sync", response.result);
+          }
+        });
+
+    await serverApi.callPluginMethod<{ key: string, defaults: string}, string>('get_config', 
+        { "key": "toast_skipped", "defaults": "true" }).then((response) => {
+          if (response.success) {
+            this.setState("toast_skipped", response.result);
           }
         });
   }
